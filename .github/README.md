@@ -65,7 +65,7 @@ void WardenWin::Exploit(uint32 function) {
 }
 ```
 ```diff
-.\azerothcore-wotlk\src\server\game\Warden\WardenWin.h
+.\azerothcore-wotlk\src\server\game\Warden\WardenWin.h:
 bool IsCheckInProgress() override;
 void ForceChecks() override;
 void HandleData(ByteBuffer& buff) override;
